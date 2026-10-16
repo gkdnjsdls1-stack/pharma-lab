@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pharma-lab</title>
+<style>
+:root{--bg:#0a0c10;--panel:#13171e;--line:#262d38;--ink:#dfe7ef;--dim:#7d8795;
+  --acc:#56b6c2;--ok:#59c46a;--bad:#e5534b;--warn:#d8a634;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.65 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+.wrap{max-width:720px;margin:0 auto;padding:32px 16px 48px}
+h1{font-size:17px;margin:0 0 4px;letter-spacing:.04em}
+.sub{font-size:13px;color:var(--dim);margin-bottom:24px}
+.card{display:block;text-decoration:none;color:inherit;background:var(--panel);
+  border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px;
+  position:relative;transition:border-color .15s}
+a.card:hover{border-color:var(--acc)}
+.card.locked{opacity:.45}
+.no{font-family:var(--mono);font-size:12px;color:var(--dim)}
+.name{font-size:16px;font-weight:600;margin:2px 0 6px}
+.meta{font-size:12px;color:var(--dim)}
+.tag{position:absolute;top:16px;right:18px;font-size:11px;font-family:var(--mono);
+  padding:2px 9px;border-radius:12px;border:1px solid var(--line)}
+.tag.done{color:var(--ok);border-color:#2b5c38}
+.tag.lock{color:var(--dim)}
+.tag.soon{color:var(--warn);border-color:#5c4a1e}
+.foot{margin-top:26px;font-size:12px;color:var(--dim);line-height:1.8}
+button{font:inherit;padding:5px 11px;border-radius:7px;border:1px solid var(--line);
+  background:#1c222b;color:var(--dim);cursor:pointer;font-size:12px}
+button:hover{border-color:var(--bad);color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>pharma-lab</h1>
+  <div class="sub">실제 화학으로 푸는 방탈출. 한 방을 깨면 다음 방이 열린다.</div>
+  <div id="list"></div>
+  <div class="foot">
+    <span id="progress"></span><br>
+    진행은 이 브라우저에만 남는다. 방 안의 진행은 저장하지 않는다 — 한 방은 앞에 끝내는 게 맞다.
+    <div style="margin-top:10px"><button id="reset">진행 지우기</button></div>
+  </div>
+</div>
+<script>
+const ROOMS = [
+  {id:'aspirin',    no:1, name:'아스피린',  place:'3호 조제실',
+   situation:'동료가 심근경색으로 쓰러졌다', tech:'합성 · 재결정 · 융점'},
+  {id:'ors',        no:2, name:'경구수액',  place:'격리 병동',
+   situation:'설사로 탈수가 왔다. 수액이 없다', tech:'정성분석 · 조제 · 농도'},
+  {id:'quinine',    no:3, name:'퀴닌',      place:'약재 표본실',
+   situation:'숲에서 돌아온 조사원이 떨고 있다', tech:'추출 · 형광'},
+  {id:'penicillin', no:4, name:'페니실린',  place:'배양실',
+   situation:'벤 상처에서 붉은 줄이 올라온다', tech:'배양 · 역가'},
+  {id:'methanol',   no:5, name:'메탄올 중독', place:'밀주 창고',
+   situation:'밀주를 마시고 눈이 흐려졌다', tech:'증류 · 비중'},
+  {id:'blood',      no:6, name:'수혈',      place:'응급실',
+   situation:'사고로 대량 출혈. 라벨 없는 주머니 넷', tech:'혈액형 판정 · 교차시험'},
+  {id:'bleach',     no:7, name:'소독액',    place:'수술 준비실',
+   situation:'충수염. 기구가 소독되지 않았다', tech:'적정 · 종말점'},
+  {id:'ether',      no:8, name:'마취',      place:'수술실',
+   situation:'재우지 않으면 열 수 없다', tech:'안정성 검사 · 정제'},
+];
+const SAVE = 'pharma-lab.cleared';
+const cleared = () => { try { return JSON.parse(localStorage.getItem(SAVE)) || []; }
+                        catch (_) { return []; } };
+
+function render(){
+  const done = cleared();
+  document.getElementById('list').innerHTML = ROOMS.map((r, i) => {
+    const isDone = done.includes(r.id);
+    const open = i === 0 || done.includes(ROOMS[i-1].id);
+    const tag = r.soon ? '<span class="tag soon">준비 중</span>'
+              : isDone ? '<span class="tag done">깼다</span>'
+              : open   ? '' : '<span class="tag lock">잠김</span>';
+    const inner = `${tag}
+      <div class="no">${r.no}번째 방 · ${r.place}</div>
+      <div class="name">${r.name}</div>
+      <div class="meta">${r.situation}<br>${r.tech}</div>`;
+    return (open && !r.soon)
+      ? `<a class="card" href="room.html?r=${r.id}">${inner}</a>`
+      : `<div class="card locked">${inner}</div>`;
+  }).join('');
+  const n = ROOMS.filter(r => done.includes(r.id)).length;
+  const made = ROOMS.filter(r => !r.soon).length;
+  document.getElementById('progress').textContent = `깬 방 ${n} / 만들어진 방 ${made}`;
+}
+document.getElementById('reset').onclick = () => {
+  if (!confirm('깬 기록을 지운다. 계속할까?')) return;
+  try { localStorage.removeItem(SAVE); } catch (_) {}
+  render();
+};
+render();
+</script>
+</body>
+</html>

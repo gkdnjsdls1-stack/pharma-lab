@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pharma-lab — 리드 최적화 (보관)</title>
+<style>
+:root{
+  --bg:#0e1116; --panel:#161b22; --line:#2a313c; --ink:#e6edf3; --dim:#8b949e;
+  --acc:#58a6ff; --ok:#3fb950; --bad:#f85149; --warn:#d29922;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+h1{font-size:17px;margin:0}
+h2{font-size:13px;margin:0 0 10px;color:var(--dim);font-weight:600;letter-spacing:.04em}
+.wrap{max-width:1180px;margin:0 auto;padding:18px}
+header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.sub{color:var(--dim);font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.budget{font-family:var(--mono);font-size:13px}
+.bar{height:6px;background:#21262d;border-radius:3px;overflow:hidden;margin-top:6px}
+.bar>div{height:100%;background:var(--acc);transition:width .2s}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+th,td{text-align:right;padding:3px 5px;border-bottom:1px solid var(--line)}
+th{color:var(--dim);font-weight:600}
+td:first-child,th:first-child{text-align:left}
+.rrow{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+.rrow>b{width:28px;color:var(--dim);font-family:var(--mono)}
+.chip{font-family:var(--mono);font-size:12px;padding:3px 7px;border-radius:6px;cursor:pointer;
+  background:#21262d;border:1px solid var(--line);color:var(--ink)}
+.chip:hover{border-color:var(--acc)}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#0b0f14;font-weight:700}
+.props{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px;margin:12px 0}
+.prop{background:#0f141a;border:1px solid var(--line);border-radius:7px;padding:7px 9px}
+.prop span{display:block;color:var(--dim);font-size:11px}
+.prop b{font-family:var(--mono);font-size:15px;font-weight:600}
+.prop.v b{color:var(--bad)}
+button.go{width:100%;padding:10px;border-radius:8px;border:1px solid var(--acc);
+  background:var(--acc);color:#0b0f14;font-weight:700;font-size:14px;cursor:pointer}
+button.go:disabled{opacity:.4;cursor:not-allowed}
+button.alt{background:transparent;color:var(--acc)}
+.msg{min-height:20px;font-size:12px;color:var(--warn);margin-top:8px}
+.log{max-height:240px;overflow:auto}
+.best{background:#132b17}
+svg{width:100%;height:210px;display:block}
+.note{font-size:11px;color:var(--dim);margin-top:8px;line-height:1.5}
+.reveal{margin-top:14px;border-color:var(--ok)}
+.gradebox{font-family:var(--mono);font-size:44px;font-weight:800;line-height:1;color:var(--ok)}
+.flex{display:flex;gap:10px;align-items:center}
+.ref td,.ref th{padding:2px 4px}
+.dead{color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>pharma-lab</h1>
+  <span class="sub">리드 최적화 — 골격 <b id="scaf"></b>의 R1·R2·R3를 바꿔 가장 센 약물후보를 찾아라</span>
+</header>
+
+<div class="grid">
+  <!-- 왼쪽: 설계 -->
+  <div>
+    <div class="panel">
+      <h2>분자 설계</h2>
+      <div id="rows"></div>
+      <div class="props" id="props"></div>
+      <div id="lip" class="note"></div>
+      <button class="go" id="run"></button>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>치환기 상수 (문헌값)</h2>
+      <table class="ref" id="ref"></table>
+      <div class="note">
+        <b>σ</b> Hammett 상수 — 전자를 끌면(+) 밀면(−).
+        <b>π</b> Hansch 소수성 — 기름에 녹는 정도.
+        <b>MR</b> 몰굴절 — 치환기 덩치.<br>
+        자리마다 결합 포켓 사정이 다르다. 좁은 자리에 큰 치환기를 넣으면 활성이 절벽처럼 떨어지고,
+        어떤 자리는 뭘 붙여도 반응이 없다. 분자 전체의 logP에도 최적 봉우리가 따로 있다.
+      </div>
+    </div>
+  </div>
+
+  <!-- 오른쪽: 실험실 -->
+  <div>
+    <div class="panel">
+      <h2>예산</h2>
+      <div class="budget"><span id="left"></span> / <span id="tot"></span> 만원</div>
+      <div class="bar"><div id="bbar"></div></div>
+      <div class="flex" style="margin-top:12px">
+        <button class="go alt" id="xray"></button>
+        <button class="go" id="submit">후보 제출</button>
+      </div>
+      <div id="xinfo" class="note"></div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>자리별 단서</h2>
+      <div id="clues"></div>
+      <div class="note">한 자리만 바꾸고 나머지를 H로 둔 측정끼리 비교한 값이다.
+        무치환 H/H/H가 기준점이 된다.</div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>활성 — logP (세로: pAct, 가로: logP)</h2>
+      <svg id="plot" viewBox="0 0 420 210" preserveAspectRatio="none"></svg>
+      <div class="note">점 색 = Σσ (파랑 음수 ← → 빨강 양수). 점선 = 리핀스키 logP 상한 5.</div>
+    </div>
+
+    <div class="panel" style="margin-top:14px">
+      <h2>측정 기록 <span id="nlog" class="sub"></span></h2>
+      <div class="log"><table id="hist"></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel reveal" id="reveal" hidden></div>
+</div>
+
+<script src="sim.js"></script>
+<script>
+(function(){            // sim.js가 전역에 같은 이름들을 올리므로 게임 쪽은 가둬둔다
+const {SUBS,KEYS,SCAFFOLD,NPOS,BUDGET,RETEST_FEE,XRAY_FEE,FLOOR,POCKET_SIZES,
+       props,label,lipinski,mulberry32,makeTarget,trueActivity,assay,oracle,grade} = SIM;
+
+let G;
+function newGame(seed){
+  G = {seed, t:makeTarget(seed), rng:mulberry32(seed*7919+Date.now()%1000),
+       spent:0, log:[], xray:null, done:false, cur:['H','H','H']};
+  document.getElementById('reveal').hidden = true;
+  render();
+}
+
+const key = r => r.join('|');
+const entry = r => G.log.find(e => key(e.r) === key(r));
+const mean  = e => e.ys.reduce((a,b)=>a+b,0)/e.ys.length;
+const left  = () => BUDGET - G.spent;
+const fmtY  = y => y <= FLOOR + 0.25 ? '비활성' : y.toFixed(2);
+
+function measure(){
+  const r = [...G.cur], e = entry(r);
+  const cost = e ? RETEST_FEE : props(r).cost;
+  if (cost > left()) { msg('예산이 부족합니다.'); return; }
+  G.spent += cost;
+  const y = assay(G.t, r, G.rng);
+  if (e) e.ys.push(y); else G.log.push({r, ys:[y], p:props(r)});
+  msg(e ? `재측정: ${fmtY(y)} → 평균 ${fmtY(mean(entry(r)))}` : `측정값 pAct ${fmtY(y)}`);
+  render();
+}
+
+function buyXray(){
+  if (G.xray) return;
+  if (XRAY_FEE > left()) { msg('예산이 부족합니다.'); return; }
+  G.spent += XRAY_FEE; G.xray = G.t.pocket;
+  render();
+}
+
+function submit(){
+  const ok = G.log.filter(e => lipinski(e.p).pass);
+  if (!ok.length) { msg('제출할 수 있는 건 직접 만들어서 측정하고 리핀스키를 통과한 화합물뿐입니다.'); return; }
+  const pick = ok.sort((a,b) => mean(b) - mean(a))[0];
+  G.done = true;
+  const o = oracle(G.t), act = trueActivity(G.t, pick.r), regret = o.bestOk.act - act;
+  const g = grade(regret);
+  const t = G.t;
+  const posNote = i => {
+    const sz = t.maxMR[i] === 4.0 ? '좁음' : t.maxMR[i] === 8.5 ? '보통' : '열림';
+    const eff = i === t.dud ? '용매 노출 — 뭘 붙여도 거의 영향 없음'
+      : `소수성 민감도 ${t.wpi[i].toFixed(2)}, 전자효과 ${t.wsig[i] > 0 ? '전자 끄는 쪽 선호' : '전자 미는 쪽 선호'} (${t.wsig[i].toFixed(2)})`;
+    return `<tr><td>R${i+1}</td><td>${sz} (MR ≤ ${t.maxMR[i]})</td><td style="text-align:left">${eff}</td></tr>`;
+  };
+  document.getElementById('reveal').hidden = false;
+  document.getElementById('reveal').innerHTML = `
+    <h2>결과 — 결합 부위의 진짜 사정</h2>
+    <div class="flex" style="gap:22px;align-items:flex-start;flex-wrap:wrap">
+      <div>
+        <div class="gradebox" style="color:${g==='S'||g==='A'?'var(--ok)':g==='D'?'var(--bad)':'var(--warn)'}">${g}</div>
+        <div class="note">후회 ${regret.toFixed(2)} log 단위<br>예산 ${G.spent}/${BUDGET} · 측정 ${G.log.length}종</div>
+      </div>
+      <table style="flex:1;min-width:300px">
+        <tr><td>제출한 후보</td><td>${label(pick.r)}</td><td>실제 pAct <b>${act.toFixed(2)}</b></td></tr>
+        <tr><td>약물성 통과 최적</td><td>${label(o.bestOk.r)}</td><td>pAct <b>${o.bestOk.act.toFixed(2)}</b></td></tr>
+        <tr><td>활성만 보면 최적</td><td>${label(o.bestAny.r)}</td>
+            <td>pAct ${o.bestAny.act.toFixed(2)} ${lipinski(props(o.bestAny.r)).pass?'':'<span style="color:var(--bad)">· 약물성 탈락</span>'}</td></tr>
+      </table>
+    </div>
+    <table style="margin-top:12px"><tr><th>자리</th><th>포켓</th><th style="text-align:left">성질</th></tr>
+      ${[0,1,2].map(posNote).join('')}</table>
+    <div class="note" style="margin-top:10px">
+      전체 분자 최적 logP <b>${t.optLogP.toFixed(2)}</b> (리핀스키 상한은 5 — ${t.optLogP > 5 ? '활성 봉우리가 약물성 한계 밖에 있었다. 타협이 정답이었다.' : '봉우리가 한계 안쪽이었다.'})<br>
+      숨은 포켓 상호작용: <b>R${t.pocket.pos+1} = ${SUBS[t.pocket.sub].label}</b> 일 때 +${t.pocket.bonus.toFixed(2)}
+      ${G.xray ? '(X선으로 확인했음)' : '— X선 공동결정 구조를 샀다면 알 수 있었다.'}
+    </div>
+    <button class="go" style="margin-top:12px" onclick="newGame(${G.seed+1})">다음 타깃 (시드 ${G.seed+1})</button>`;
+  render();
+  document.getElementById('reveal').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+const msg = s => document.getElementById('msg').textContent = s;
+
+function render(){
+  document.getElementById('scaf').textContent = SCAFFOLD.name;
+  // 치환기 선택
+  const rows = document.getElementById('rows');
+  rows.innerHTML = [0,1,2].map(i => `<div class="rrow"><b>R${i+1}</b>` +
+    KEYS.map(k => `<button class="chip ${G.cur[i]===k?'on':''}" data-p="${i}" data-k="${k}"
+      title="σ ${SUBS[k].sigma} · π ${SUBS[k].pi} · MR ${SUBS[k].mr}">${SUBS[k].label}</button>`).join('') +
+    `</div>`).join('');
+  rows.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+    if (G.done) return;
+    G.cur[+b.dataset.p] = b.dataset.k; render();
+  });
+
+  // 물성
+  const p = props(G.cur), lp = lipinski(p);
+  const cell = (n, v, bad) => `<div class="prop ${bad?'v':''}"><span>${n}</span><b>${v}</b></div>`;
+  document.getElementById('props').innerHTML =
+    cell('분자량', p.mw.toFixed(0), p.mw > 500) +
+    cell('logP', p.logP.toFixed(2), p.logP > 5) +
+    cell('HBD', p.hbd, p.hbd > 5) + cell('HBA', p.hba, p.hba > 10) +
+    cell('Σσ', (p.sigma>=0?'+':'') + p.sigma.toFixed(2)) +
+    cell('ΣMR', KEYS.length && G.cur.reduce((s,k)=>s+SUBS[k].mr,0).toFixed(1));
+  document.getElementById('lip').innerHTML = lp.pass
+    ? '<span style="color:var(--ok)">리핀스키 5의 법칙 통과 — 먹는 약이 될 수 있다</span>'
+    : '<span style="color:var(--bad)">약물성 탈락: ' + lp.violations.join(', ') + '</span>';
+
+  // 측정 버튼
+  const e = entry(G.cur), cost = e ? RETEST_FEE : p.cost;
+  const btn = document.getElementById('run');
+  btn.textContent = e ? `재측정 (${cost}만원) — 현재 평균 ${fmtY(mean(e))}` : `합성 + 활성 측정 (${cost}만원)`;
+  btn.disabled = G.done || cost > left();
+  btn.onclick = measure;
+
+  // 예산
+  document.getElementById('left').textContent = left();
+  document.getElementById('tot').textContent = BUDGET;
+  document.getElementById('bbar').style.width = (100*left()/BUDGET) + '%';
+  const xb = document.getElementById('xray');
+  xb.textContent = G.xray ? 'X선 구조 확보' : `X선 공동결정 구조 (${XRAY_FEE}만원)`;
+  xb.disabled = !!G.xray || G.done || XRAY_FEE > left();
+  xb.onclick = buyXray;
+  document.getElementById('xinfo').innerHTML = G.xray
+    ? `구조에서 보이는 특이 상호작용: <b>R${G.xray.pos+1}에 ${SUBS[G.xray.sub].label}</b>가 들어가면 추가 결합 (+${G.xray.bonus.toFixed(2)})`
+    : '숨은 포켓 상호작용 하나를 알려준다. 실험 2~3번 값이다.';
+  const sb = document.getElementById('submit');
+  sb.disabled = G.done || !G.log.some(x => lipinski(x.p).pass);
+  sb.onclick = submit;
+
+  // 치환기 표
+  document.getElementById('ref').innerHTML =
+    '<tr><th>치환기</th><th>σ</th><th>π</th><th>MR</th><th>ΔMW</th><th>단가</th></tr>' +
+    KEYS.map(k => { const s = SUBS[k];
+      return `<tr><td>${s.label}</td><td>${s.sigma.toFixed(2)}</td><td>${s.pi.toFixed(2)}</td>
+      <td>${s.mr.toFixed(2)}</td><td>+${s.dmw.toFixed(0)}</td><td>${s.cost}</td></tr>`; }).join('');
+
+  // 기록
+  const sorted = [...G.log].sort((a,b) => mean(b) - mean(a));
+  document.getElementById('nlog').textContent = G.log.length ? `${G.log.length}종` : '';
+  document.getElementById('hist').innerHTML = G.log.length === 0
+    ? '<tr><td class="dead" style="text-align:left">아직 없음. 무치환 H/H/H부터 재 보는 게 보통이다.</td></tr>'
+    : '<tr><th>R1/R2/R3</th><th>logP</th><th>Σσ</th><th>pAct</th><th>n</th><th>약물성</th></tr>' +
+      sorted.map((x,i) => `<tr class="${i===0?'best':''}"><td>${label(x.r)}</td>
+        <td>${x.p.logP.toFixed(2)}</td><td>${(x.p.sigma>=0?'+':'')+x.p.sigma.toFixed(2)}</td>
+        <td><b>${fmtY(mean(x))}</b></td><td>${x.ys.length}</td>
+        <td>${lipinski(x.p).pass ? '<span style="color:var(--ok)">통과</span>' : '<span style="color:var(--bad)">탈락</span>'}</td></tr>`).join('');
+
+  drawClues();
+  drawPlot();
+}
+
+// 자리별 단서: 한 자리만 바꾼 측정을 기준점(H/H/H)과 비교한다.
+// 실제 SAR 분석에서 제일 먼저 하는 계산이고, 이게 없으면 추론할 재료가 없다.
+function drawClues(){
+  const base = entry(['H','H','H']);
+  const el = document.getElementById('clues');
+  if (!base) {
+    el.innerHTML = '<div class="note" style="margin:0">무치환 <b>H/H/H</b>를 먼저 재야 비교 기준이 생긴다.</div>';
+    return;
+  }
+  const b = mean(base);
+  el.innerHTML = [0,1,2].map(i => {
+    const hits = G.log.filter(e => e.r.every((k, j) => j === i ? k !== 'H' : k === 'H'))
+      .map(e => ({k:e.r[i], d:mean(e) - b, dead:mean(e) <= FLOOR + 0.25}))
+      .sort((a,b2) => b2.d - a.d);
+    const body = hits.length
+      ? hits.map(h => `<span style="display:inline-block;margin-right:10px">
+          ${SUBS[h.k].label} <b style="color:${h.dead?'var(--bad)':h.d>0.3?'var(--ok)':h.d<-0.3?'var(--bad)':'var(--dim)'}">
+          ${h.dead ? '비활성' : (h.d>=0?'+':'') + h.d.toFixed(2)}</b></span>`).join('')
+      : '<span class="dead">아직 단독으로 재 본 치환기가 없다</span>';
+    return `<div class="rrow" style="align-items:baseline"><b>R${i+1}</b>
+      <span style="flex:1;font-family:var(--mono);font-size:12px">${body}</span></div>`;
+  }).join('') +
+  `<div class="note" style="margin-top:2px">기준 H/H/H = pAct ${fmtY(b)}
+   ${base.ys.length > 1 ? `(${base.ys.length}회 평균)` : '— 재측정하면 기준이 정확해진다'}</div>`;
+}
+
+function drawPlot(){
+  const W = 420, H = 210, m = {l:34, r:8, t:8, b:24};
+  const xs = [2.0, 6.6], ys = [FLOOR - 0.3, 11];
+  const X = v => m.l + (v - xs[0])/(xs[1]-xs[0]) * (W - m.l - m.r);
+  const Y = v => H - m.b - (v - ys[0])/(ys[1]-ys[0]) * (H - m.t - m.b);
+  let s = `<rect x="0" y="0" width="${W}" height="${H}" fill="transparent"/>`;
+  for (let v = 5; v <= 10; v++)
+    s += `<line x1="${m.l}" y1="${Y(v)}" x2="${W-m.r}" y2="${Y(v)}" stroke="#222a34"/>
+          <text x="${m.l-5}" y="${Y(v)+4}" fill="#8b949e" font-size="9" text-anchor="end">${v}</text>`;
+  for (let v = 2; v <= 6; v++)
+    s += `<text x="${X(v)}" y="${H-8}" fill="#8b949e" font-size="9" text-anchor="middle">${v}</text>`;
+  s += `<line x1="${X(5)}" y1="${m.t}" x2="${X(5)}" y2="${H-m.b}" stroke="#f85149" stroke-dasharray="3 3" opacity=".7"/>
+        <text x="${X(5)+4}" y="${m.t+10}" fill="#f85149" font-size="9">logP 5</text>`;
+  for (const e of G.log) {
+    const y = mean(e), sg = Math.max(-1.5, Math.min(1.5, e.p.sigma)) / 1.5;
+    const c = sg >= 0 ? `rgb(${200+Math.round(55*sg)},${110-Math.round(60*sg)},90)`
+                      : `rgb(90,${130+Math.round(40*-sg)},${200+Math.round(55*-sg)})`;
+    const dead = y <= FLOOR + 0.25;
+    s += `<circle cx="${X(e.p.logP).toFixed(1)}" cy="${Y(y).toFixed(1)}" r="${dead?3:5}"
+           fill="${dead?'#30363d':c}" stroke="${lipinski(e.p).pass?'#e6edf3':'#f85149'}" stroke-width="1.2">
+          <title>${label(e.r)} · logP ${e.p.logP.toFixed(2)} · Σσ ${e.p.sigma.toFixed(2)} · pAct ${fmtY(y)}</title></circle>`;
+  }
+  document.getElementById('plot').innerHTML = s;
+}
+
+window.newGame = newGame;   // 결과 패널의 '다음 타깃' 버튼이 부른다
+newGame(1);
+})();
+</script>
+</body>
+</html>
