@@ -3,21 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>pharma-lab</title>
+<title>pharma-lab — 실제 화학으로 푸는 방탈출</title>
+<meta name="theme-color" content="#0a0c10">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="실제 화학으로 푸는 방탈출. 여덟 개의 방, 여덟 가지 응급 상황.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230a0c10'/><path d='M13 4h6M14 4v9L8 24a3 3 0 0 0 2.6 4.5h10.8A3 3 0 0 0 24 24l-6-11V4' fill='none' stroke='%2356b6c2' stroke-width='2' stroke-linecap='round'/><path d='M10.6 20h10.8l2.6 4.6a2 2 0 0 1-1.7 3H9.7a2 2 0 0 1-1.7-3z' fill='%2356b6c2'/></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230a0c10'/><path d='M13 4h6M14 4v9L8 24a3 3 0 0 0 2.6 4.5h10.8A3 3 0 0 0 24 24l-6-11V4' fill='none' stroke='%2356b6c2' stroke-width='2' stroke-linecap='round'/><path d='M10.6 20h10.8l2.6 4.6a2 2 0 0 1-1.7 3H9.7a2 2 0 0 1-1.7-3z' fill='%2356b6c2'/></svg>">
 <style>
 :root{--bg:#0a0c10;--panel:#13171e;--line:#262d38;--ink:#dfe7ef;--dim:#7d8795;
   --acc:#56b6c2;--ok:#59c46a;--bad:#e5534b;--warn:#d8a634;
   --mono:ui-monospace,SFMono-Regular,Menlo,monospace}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
-  font:14px/1.65 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+  font:14px/1.65 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  animation:fadein .35s ease both;transition:opacity .28s ease}
+body.leaving{opacity:0}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
 .wrap{max-width:720px;margin:0 auto;padding:32px 16px 48px}
-h1{font-size:17px;margin:0 0 4px;letter-spacing:.04em}
-.sub{font-size:13px;color:var(--dim);margin-bottom:24px}
+.kicker{font:11px/1 var(--mono);letter-spacing:.34em;color:var(--acc);opacity:.8;margin-bottom:14px}
+h1{font-size:28px;margin:0 0 10px;letter-spacing:.01em}
+.sub{font-size:13px;color:var(--dim);margin-bottom:8px;line-height:1.8}
+.rule{height:1px;background:linear-gradient(90deg,var(--acc),transparent);
+  opacity:.45;margin:18px 0 22px}
 .card{display:block;text-decoration:none;color:inherit;background:var(--panel);
-  border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px;
-  position:relative;transition:border-color .15s}
-a.card:hover{border-color:var(--acc)}
+  border:1px solid var(--line);border-radius:12px;padding:16px 18px 16px 20px;margin-bottom:12px;
+  position:relative;overflow:hidden;transition:border-color .15s,transform .12s,box-shadow .15s}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+  background:var(--line);transition:background .15s}
+a.card:hover{border-color:var(--acc);transform:translateY(-1px);box-shadow:0 10px 30px #0007}
+a.card:hover::before{background:var(--acc)}
 .card.locked{opacity:.45}
 .no{font-family:var(--mono);font-size:12px;color:var(--dim)}
 .name{font-size:16px;font-weight:600;margin:2px 0 6px}
@@ -35,8 +51,11 @@ button:hover{border-color:var(--bad);color:var(--ink)}
 </head>
 <body>
 <div class="wrap">
-  <h1>pharma-lab</h1>
-  <div class="sub">실제 화학으로 푸는 방탈출. 한 방을 깨면 다음 방이 열린다.</div>
+  <div class="kicker">pharma-lab</div>
+  <h1>살릴 수 있나</h1>
+  <div class="sub">여덟 개의 방, 여덟 가지 응급 상황. 약은 직접 만들거나, 고르거나, 재야 한다.<br>
+    화학 값은 전부 문헌값이다. 한 방을 깨면 다음 방이 열린다.</div>
+  <div class="rule"></div>
   <div id="list"></div>
   <div class="foot">
     <span id="progress"></span><br>
@@ -93,6 +112,15 @@ document.getElementById('reset').onclick = () => {
   render();
 };
 render();
+
+// 넘어갈 때 화면이 한 번 어두워졌다 들어온다
+document.getElementById('list').addEventListener('click', e => {
+  const a = e.target.closest('a.card');
+  if (!a) return;
+  e.preventDefault();
+  document.body.classList.add('leaving');
+  setTimeout(() => { location.href = a.getAttribute('href'); }, 280);
+});
 </script>
 </body>
 </html>

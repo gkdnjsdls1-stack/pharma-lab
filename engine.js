@@ -9,6 +9,65 @@ const C = R.chem;
 const $ = id => document.getElementById(id);
 window.$ = $;
 const SAVE = 'pharma-lab.cleared';
+const MUTE = 'pharma-lab.muted';
+
+// 방마다 빛깔을 다르게 준다. 여덟 방이 같은 회색이면 한 방을 여덟 번 하는 것이다.
+// 방 파일은 이걸 몰라도 된다 — 엔진이 id로만 고른다.
+const PALETTE = {
+  aspirin:   {key:0xbfe4ee, rim:0x3a6a7a, bg:0x070a0d, wall:0x0b1017, floor:0x0e141b},
+  ors:       {key:0xcfe8d8, rim:0x2f6a5a, bg:0x060b0a, wall:0x0a1412, floor:0x0d1a16},
+  quinine:   {key:0xe8dcb8, rim:0x6a5a34, bg:0x0b0a07, wall:0x14110b, floor:0x1a160e},
+  penicillin:{key:0xd4e4bc, rim:0x4a6a38, bg:0x080b07, wall:0x0d130b, floor:0x111a0e},
+  methanol:  {key:0xd0d8e8, rim:0x3a4a7a, bg:0x07080d, wall:0x0b0d17, floor:0x0e111b},
+  blood:     {key:0xf0d4d4, rim:0x7a3a3a, bg:0x0d0708, wall:0x170b0d, floor:0x1b0e11},
+  bleach:    {key:0xd8eef0, rim:0x3a7a78, bg:0x070c0d, wall:0x0b1517, floor:0x0e1b1d},
+  ether:     {key:0xc8ccE4, rim:0x4a467a, bg:0x08080c, wall:0x0d0d15, floor:0x111119},
+};
+const P = PALETTE[R.id] || PALETTE.aspirin;
+
+// --- 소리 — 음원 파일 없이 코드로 낸다. 그래서 받을 것이 늘지 않는다 ----------
+let actx = null, muted = false;
+try { muted = localStorage.getItem(MUTE) === '1'; } catch (_) {}
+function tone(f, t0, dur, type, vol){
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type; o.frequency.setValueAtTime(f, t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(vol, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(actx.destination);
+  o.start(t0); o.stop(t0 + dur + 0.03);
+}
+const SFX = {
+  tap:  a => tone(520, a, .05, 'triangle', .04),
+  open: a => tone(300, a, .09, 'sine', .05),
+  drop: a => { tone(190, a, .08, 'triangle', .06); tone(380, a + .05, .07, 'sine', .035); },
+  warn: a => tone(240, a, .16, 'square', .03),
+  win:  a => { tone(392, a, .2, 'sine', .07); tone(523, a + .13, .26, 'sine', .07);
+               tone(659, a + .28, .5, 'sine', .06); },
+  lose: a => { tone(200, a, .4, 'sine', .07); tone(140, a + .2, .8, 'sine', .06); },
+};
+// 브라우저는 사용자가 건드리기 전에는 소리를 안 내준다. 그래서 늦게 만들고, 실패해도 조용히 넘긴다.
+function sfx(n){
+  if (muted || !SFX[n]) return;
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    SFX[n](actx.currentTime);
+  } catch (_) {}
+}
+function toggleMute(){
+  muted = !muted;
+  try { localStorage.setItem(MUTE, muted ? '1' : '0'); } catch (_) {}
+  $('mute').textContent = muted ? '소리 꺼짐' : '소리 켜짐';
+  $('mute').setAttribute('aria-pressed', String(!muted));
+  if (!muted) sfx('tap');
+}
+
+// 넘어갈 때 툭 끊지 않는다 — 화면이 한 번 어두워졌다 들어온다
+function leave(href){
+  document.body.classList.add('leaving');
+  setTimeout(() => { location.href = href; }, 280);
+}
 
 // 깬 방 목록만 저장한다. 방 안의 진행은 저장하지 않는다 — 한 방은 앞에 끝내는 게 맞다.
 const cleared = () => { try { return JSON.parse(localStorage.getItem(SAVE)) || []; }
@@ -16,6 +75,25 @@ const cleared = () => { try { return JSON.parse(localStorage.getItem(SAVE)) || [
 const markCleared = id => { try {
   const c = cleared(); if (!c.includes(id)) localStorage.setItem(SAVE, JSON.stringify(c.concat(id)));
 } catch (_) {} };
+
+// 카드 누르면 곧바로 방이던 것을, 제목 한 장 보여주고 들어가게 했다
+function titleCard(then){
+  const t = $('titlecard');
+  let done = false;
+  t.innerHTML = `<div class="tcard"><div class="tkicker">pharma-lab</div>
+    <h2>${R.title}</h2><div class="tsit">${R.situation}</div>
+    <div class="ttech">${R.name}</div></div>`;
+  t.classList.remove('off');
+  t.hidden = false;
+  const go = () => {
+    if (done) return;
+    done = true;
+    t.classList.add('off');
+    setTimeout(() => { t.hidden = true; then(); }, 420);
+  };
+  t.onclick = go;
+  setTimeout(go, 2400);
+}
 
 let S;
 window.S = null;
@@ -29,7 +107,7 @@ function init(replay){
   $('vn').hidden = true;
   vnQ = [];
   draw();
-  if (!replay) say(R.INTRO);
+  if (!replay) titleCard(() => say(R.INTRO));
 }
 
 const stage = () => Math.min(3, C.stageOf(S.spent));
@@ -74,20 +152,20 @@ function reg(g, o, extra){
 }
 
 function shell(){
-  scene.add(at(box(34, .6, 26, 0x0e141b), 0, -.3, -3));
-  scene.add(at(box(34, 14, .6, 0x0b1017), 0, 7, -14.3));
-  scene.add(at(box(.6, 14, 26, 0x0a0f15), -17, 7, -3));
-  scene.add(at(box(.6, 14, 26, 0x0a0f15),  17, 7, -3));
+  scene.add(at(box(34, .6, 26, P.floor), 0, -.3, -3));
+  scene.add(at(box(34, 14, .6, P.wall), 0, 7, -14.3));
+  scene.add(at(box(.6, 14, 26, P.bg), -17, 7, -3));
+  scene.add(at(box(.6, 14, 26, P.bg),  17, 7, -3));
 }
 function lights(){
   scene.add(new THREE.AmbientLight(0x5a6b7a, .55));
-  const key = new THREE.DirectionalLight(0xbfe4ee, .95);
+  const key = new THREE.DirectionalLight(P.key, .95);
   key.position.set(10, 20, 12); key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024);
   const c = key.shadow.camera;
   c.left = -26; c.right = 26; c.top = 26; c.bottom = -26; c.far = 70;
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0x3a6a7a, .45);
+  const rim = new THREE.DirectionalLight(P.rim, .45);
   rim.position.set(-14, 8, -6); scene.add(rim);
 }
 function placeCam(){
@@ -109,8 +187,8 @@ function resize(){
 }
 function three(){
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x070a0d);
-  scene.fog = new THREE.Fog(0x070a0d, 26, 58);
+  scene.background = new THREE.Color(P.bg);
+  scene.fog = new THREE.Fog(P.bg, 26, 58);
   cam = new THREE.PerspectiveCamera(42, 1, .1, 220);
   renderer = new THREE.WebGLRenderer({antialias:true});
   renderer.shadowMap.enabled = true;
@@ -179,10 +257,11 @@ function bindPointer(cv){
     if (drag){
       $('ghost').hidden = true;
       const r = drag; drag = null;
-      if (hit && hit.userData.drop) R.drop(hit.userData.drop, r);
+      if (hit && hit.userData.drop) { sfx('drop'); R.drop(hit.userData.drop, r); }
       draw();
     } else if (orbit && moved < 6 && down && down.userData.o){
       S.sel = down.userData.o; S.msg = ''; S.open = true;
+      sfx('open');
       if (R.onSelect) R.onSelect(down.userData);
       draw();
     }
@@ -215,13 +294,12 @@ function vnShow(){
   $('vnline').textContent = l.t;
   if (l.pic !== undefined) portrait(l.pic);
 }
-function vnNext(){ if (!vnQ.length) return; vnQ.shift(); vnShow(); if (!vnQ.length) draw(); }
+function vnNext(){ if (!vnQ.length) return; sfx('tap'); vnQ.shift(); vnShow(); if (!vnQ.length) draw(); }
 // 그림은 쓰는 사람이 넣는다. 없으면 실루엣으로 떨어진다.
 function portrait(n){
   const img = $('vnpic'), file = `portraits/${R.id}-${n}.jpg`;
   img.onload  = () => { img.hidden = false; $('vnfall').hidden = true; };
-  img.onerror = () => { img.hidden = true;  $('vnfall').hidden = false;
-                        $('vnmiss').textContent = file; };
+  img.onerror = () => { img.hidden = true;  $('vnfall').hidden = false; };
   img.src = file;
 }
 $('vn').addEventListener('click', vnNext);
@@ -238,6 +316,7 @@ window.addEventListener('keydown', e => {
 
 // --- 버튼: 공통 두 가지만 엔진이 맡고 나머지는 방이 맡는다 -------------------
 function act(id){
+  sfx(id === 'sheetclose' ? 'open' : 'tap');
   if (id === 'sheetclose'){ S.open = false; S.msg = ''; draw(); return; }
   if (id === 'hint'){
     const k = R.stuckAt();
@@ -252,6 +331,7 @@ function act(id){
 
 function finish(win, text, why){
   S.over = true;
+  sfx(win ? 'win' : 'lose');
   if (win) markCleared(R.id);
   const nextOpen = win && R.next;
   const e = $('end');
@@ -264,9 +344,9 @@ function finish(win, text, why){
     ${nextOpen ? `<div class="doc ok">다음 방이 열렸다.</div>` : ''}
     <div class="row" style="justify-content:center;margin-top:14px">
       <button class="go" id="again">다시</button>
-      <button id="tohub">방 고르기</button></div></div>`;
-  e.querySelector('#again').onclick = () => init(true);
-  e.querySelector('#tohub').onclick = () => { location.href = 'index.html'; };
+      <button id="endhub">방 고르기</button></div></div>`;
+  e.querySelector('#again').onclick = () => { sfx('tap'); init(true); };
+  e.querySelector('#endhub').onclick = () => leave('index.html');
 }
 window.finish = finish;
 
@@ -301,8 +381,12 @@ function draw(){
 }
 window.draw = draw;
 
-document.title = R.title;
+document.title = `${R.title} — pharma-lab`;
 $('roomname').textContent = R.title;
+$('mute').textContent = muted ? '소리 꺼짐' : '소리 켜짐';
+$('mute').setAttribute('aria-pressed', String(!muted));
+$('mute').onclick = toggleMute;
+$('tohub').addEventListener('click', e => { e.preventDefault(); leave('index.html'); });
 three();
 init();
 })();

@@ -4,26 +4,55 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>pharma-lab</title>
+<meta name="theme-color" content="#0a0c10">
+<meta name="color-scheme" content="dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230a0c10'/><path d='M13 4h6M14 4v9L8 24a3 3 0 0 0 2.6 4.5h10.8A3 3 0 0 0 24 24l-6-11V4' fill='none' stroke='%2356b6c2' stroke-width='2' stroke-linecap='round'/><path d='M10.6 20h10.8l2.6 4.6a2 2 0 0 1-1.7 3H9.7a2 2 0 0 1-1.7-3z' fill='%2356b6c2'/></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230a0c10'/><path d='M13 4h6M14 4v9L8 24a3 3 0 0 0 2.6 4.5h10.8A3 3 0 0 0 24 24l-6-11V4' fill='none' stroke='%2356b6c2' stroke-width='2' stroke-linecap='round'/><path d='M10.6 20h10.8l2.6 4.6a2 2 0 0 1-1.7 3H9.7a2 2 0 0 1-1.7-3z' fill='%2356b6c2'/></svg>">
 <style>
 :root{--bg:#0a0c10;--panel:#13171e;--line:#262d38;--ink:#dfe7ef;--dim:#7d8795;
   --acc:#56b6c2;--ok:#59c46a;--bad:#e5534b;--warn:#d8a634;
   --mono:ui-monospace,SFMono-Regular,Menlo,monospace}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
-  font:14px/1.65 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+  font:14px/1.65 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  animation:fadein .35s ease both;transition:opacity .28s ease}
+body.leaving{opacity:0}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
 .wrap{max-width:1000px;margin:0 auto;padding:16px}
 header{margin-bottom:10px}
 h1{font-size:15px;margin:0 0 4px;letter-spacing:.06em;color:var(--dim);font-weight:600}
 h1 a{color:var(--acc);text-decoration:none}
 h1 a:hover{text-decoration:underline}
 #vital{font-size:15px;font-weight:600}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#mute{font:11px var(--mono);padding:3px 11px;border-radius:999px;color:var(--dim);
+  flex:0 0 auto;white-space:nowrap}
+
+/* 방에 들어가기 전에 제목 한 장. 문서에서 문서로 넘어가는 느낌을 없앤다 */
+#titlecard{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;
+  padding:24px;cursor:pointer;transition:opacity .42s ease;
+  animation:fadein .42s ease both;
+  background:radial-gradient(62% 62% at 50% 44%,#0f161ef2,#04060afa)}
+#titlecard.off{opacity:0}
+#titlecard[hidden]{display:none}
+.tcard{text-align:center;animation:tcrise .42s ease both}
+@keyframes tcrise{from{transform:translateY(10px)}to{transform:none}}
+.tkicker{font:11px/1 var(--mono);letter-spacing:.34em;color:var(--acc);margin-bottom:16px;opacity:.8}
+#titlecard .tcard h2{font-size:clamp(22px,5vw,32px);color:var(--ink);margin:0 0 12px;letter-spacing:.02em}
+.tsit{font-size:14px;color:var(--dim);margin-bottom:18px}
+.ttech{display:inline-block;font:11px var(--mono);color:var(--acc);
+  border:1px solid #2a4c54;border-radius:999px;padding:4px 13px}
 
 /* --- 방 (3D) --- */
 .room{position:relative;background:#070a0d;border:1px solid var(--line);
-  border-radius:10px;overflow:hidden;height:min(56vh, 70vw);min-height:300px}
+  border-radius:12px;overflow:hidden;height:min(56vh, 70vw);min-height:300px;
+  box-shadow:0 18px 50px #0009, inset 0 0 60px #0006}
 .room canvas{display:block;width:100%;height:100%;touch-action:none}
-#hint3d{position:absolute;left:10px;bottom:8px;font-size:11px;color:var(--dim);
-  pointer-events:none;opacity:.8}
+#hint3d{position:absolute;left:10px;bottom:9px;font-size:11px;color:var(--dim);
+  pointer-events:none;opacity:.75;background:#0b1016cc;border:1px solid var(--line);
+  border-radius:999px;padding:3px 11px;transition:opacity .25s}
 #ghost{position:fixed;pointer-events:none;z-index:50;transform:translate(-50%,-50%);
   background:#1c222b;border:1px solid var(--warn);border-radius:7px;padding:4px 10px;
   font-family:var(--mono);font-size:12px;color:var(--warn);white-space:nowrap}
@@ -33,8 +62,10 @@ h1 a:hover{text-decoration:underline}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:12px}
 h2{font-size:13px;margin:0 0 10px;color:var(--acc);letter-spacing:.04em}
 .mono{font-family:var(--mono)}
-button{font:inherit;padding:7px 12px;border-radius:7px;border:1px solid var(--line);
-  background:#1c222b;color:var(--ink);cursor:pointer}
+button{font:inherit;padding:7px 12px;border-radius:8px;border:1px solid var(--line);
+  background:#1c222b;color:var(--ink);cursor:pointer;
+  transition:border-color .15s,background .15s,transform .07s}
+button:active:not(:disabled){transform:translateY(1px)}
 button:hover:not(:disabled){border-color:var(--acc)}
 button:disabled{opacity:.35;cursor:not-allowed}
 button.go{background:var(--acc);border-color:var(--acc);color:#06212a;font-weight:700}
@@ -44,10 +75,11 @@ select{width:auto}
 label{font-size:12px;color:var(--dim)}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0}
 .note{font-size:12px;color:var(--dim);line-height:1.6}
-.doc{background:#0c1015;border-left:2px solid var(--line);padding:9px 13px;margin:7px 0;
-  font-size:13px;line-height:1.8}
+.doc{background:#0c1015;border-left:2px solid var(--line);border-radius:0 8px 8px 0;
+  padding:9px 13px;margin:7px 0;font-size:13px;line-height:1.8}
 .doc b{color:var(--ink)}
-.paper{background:#161a14;border-left:2px solid #3f4a35;font-family:var(--mono);font-size:13px;
+.paper{background:#161a14;border-left:2px solid #3f4a35;border-radius:0 8px 8px 0;
+  font-family:var(--mono);font-size:13px;
   padding:11px 14px;margin:7px 0;line-height:2;white-space:pre-wrap}
 .blank{color:var(--warn);background:#2a2415;padding:0 7px;border-radius:3px}
 .paper input{width:64px;padding:3px 7px;margin:0 2px}
@@ -65,9 +97,9 @@ th{color:var(--dim);font-weight:600}
 #vn{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;
   justify-content:center;background:linear-gradient(transparent 40%,#000a 100%);cursor:pointer}
 #vn[hidden]{display:none}
-.vnbox{width:min(960px,96vw);margin:0 10px 18px;background:#0e1319ef;
-  border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;gap:14px;
-  align-items:flex-end;box-shadow:0 10px 40px #000a}
+.vnbox{width:min(960px,96vw);margin:0 10px 18px;background:#0e1319f2;
+  border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;gap:14px;
+  align-items:flex-end;box-shadow:0 14px 50px #000c}
 .vnpic{width:132px;flex:0 0 132px;height:168px;border-radius:9px;overflow:hidden;
   background:#0a0f14;border:1px solid var(--line);display:flex;align-items:flex-end;justify-content:center}
 .vnpic img{width:100%;height:100%;object-fit:cover;object-position:top}
@@ -77,18 +109,18 @@ th{color:var(--dim);font-weight:600}
 .vnname{font-size:12px;color:var(--acc);letter-spacing:.05em;margin-bottom:6px;min-height:18px}
 .vnline{font-size:16px;line-height:1.85;min-height:3.7em}
 .vnnext{text-align:right;font-size:11px;color:var(--dim);margin-top:6px}
-.vnmiss{font:10px var(--mono);color:#4b5563;text-align:center;padding:4px}
 @media (max-width:560px){
   .vnpic{width:84px;flex:0 0 84px;height:108px}
   .vnline{font-size:15px}
 }
 /* 사물을 클릭하면 방 위로 띄운다. 아래 패널은 화면 밖이라 안 보였다. */
 #sheet{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
-  padding:20px;background:#000a}
+  padding:20px;background:#000a;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
 #sheet[hidden]{display:none}
 .sheetbox{position:relative;background:var(--panel);border:1px solid var(--line);
+  border-top:2px solid var(--acc);
   border-radius:12px;padding:16px 18px;width:min(620px,94vw);max-height:84vh;overflow:auto;
-  box-shadow:0 20px 60px #000c}
+  box-shadow:0 24px 70px #000d}
 #sheetclose{position:absolute;top:10px;right:12px;padding:2px 9px;font-size:13px;line-height:1.4}
 .sheetbox h2{padding-right:34px}
 /* 끌어다 놓은 결과는 창을 열지 않고 방 위에 한 줄로 알린다 */
@@ -106,7 +138,10 @@ th{color:var(--dim);font-weight:600}
 <div class="wrap">
 <header>
   <h1><a href="index.html" id="tohub">← 방 고르기</a>　<span id="roomname"></span></h1>
-  <div id="vital"></div>
+  <div class="hrow">
+    <div id="vital"></div>
+    <button id="mute" aria-pressed="true">소리 켜짐</button>
+  </div>
 </header>
 
 <div class="room" id="room">
@@ -114,6 +149,8 @@ th{color:var(--dim);font-weight:600}
   <div id="toast" hidden></div>
 </div>
 </div>
+
+<div id="titlecard" hidden></div>
 
 <div id="sheet" hidden><div class="sheetbox" id="sheetbox"></div></div>
 
@@ -128,7 +165,6 @@ th{color:var(--dim);font-weight:600}
           <circle cx="36" cy="28" r="18" fill="#2a3642"/>
           <path d="M8 120 Q10 62 36 56 Q62 62 64 120 Z" fill="#232e38"/>
         </svg>
-        <div class="vnmiss" id="vnmiss"></div>
       </div>
     </div>
     <div class="vntext">
