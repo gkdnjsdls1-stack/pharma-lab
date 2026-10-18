@@ -77,21 +77,25 @@ const markCleared = id => { try {
 } catch (_) {} };
 
 // 카드 누르면 곧바로 방이던 것을, 제목 한 장 보여주고 들어가게 했다
+let skipTitle = null;
 function titleCard(then){
   const t = $('titlecard');
   let done = false;
   t.innerHTML = `<div class="tcard"><div class="tkicker">pharma-lab</div>
     <h2>${R.title}</h2><div class="tsit">${R.situation}</div>
-    <div class="ttech">${R.name}</div></div>`;
+    <div class="ttech">${R.name}</div>
+    <div class="tskip">클릭 · Space · Enter 로 넘기기</div></div>`;
   t.classList.remove('off');
   t.hidden = false;
   const go = () => {
     if (done) return;
     done = true;
+    skipTitle = null;
     t.classList.add('off');
     setTimeout(() => { t.hidden = true; then(); }, 420);
   };
   t.onclick = go;
+  skipTitle = go;
   setTimeout(go, 2400);
 }
 
@@ -307,6 +311,10 @@ $('sheet').addEventListener('pointerdown', e => {
   if (e.target === $('sheet')) { S.open = false; S.msg = ''; draw(); }
 });
 window.addEventListener('keydown', e => {
+  if (skipTitle){
+    if (e.key === ' ' || e.key === 'Enter' || e.key === 'Escape'){ e.preventDefault(); skipTitle(); }
+    return;
+  }
   if (!$('vn').hidden){
     if (e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); vnNext(); }
     return;
