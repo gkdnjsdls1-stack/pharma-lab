@@ -18,9 +18,14 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
   font:14px/1.65 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
-  animation:fadein .35s ease both;transition:opacity .28s ease}
+  animation:fadein .35s ease;transition:opacity .28s ease}
 body.leaving{opacity:0}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
+/* 움직임을 줄여 달라고 한 사람에게는 줄여 준다 */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important}
+}
 .wrap{max-width:720px;margin:0 auto;padding:32px 16px 48px}
 .kicker{font:11px/1 var(--mono);letter-spacing:.34em;color:var(--acc);opacity:.8;margin-bottom:14px}
 h1{font-size:28px;margin:0 0 10px;letter-spacing:.01em}

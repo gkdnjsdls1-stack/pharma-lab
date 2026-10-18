@@ -17,9 +17,14 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
   font:14px/1.65 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
-  animation:fadein .35s ease both;transition:opacity .28s ease}
+  animation:fadein .35s ease;transition:opacity .28s ease}
 body.leaving{opacity:0}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
+/* 움직임을 줄여 달라고 한 사람에게는 줄여 준다 */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important}
+}
 .wrap{max-width:1000px;margin:0 auto;padding:16px}
 header{margin-bottom:10px}
 h1{font-size:15px;margin:0 0 4px;letter-spacing:.06em;color:var(--dim);font-weight:600}
@@ -33,7 +38,7 @@ h1 a:hover{text-decoration:underline}
 /* 방에 들어가기 전에 제목 한 장. 문서에서 문서로 넘어가는 느낌을 없앤다 */
 #titlecard{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;
   padding:24px;cursor:pointer;transition:opacity .42s ease;
-  animation:fadein .42s ease both;
+  animation:fadein .42s ease;
   background:radial-gradient(62% 62% at 50% 44%,#0f161ef2,#04060afa)}
 #titlecard.off{opacity:0}
 #titlecard[hidden]{display:none}
