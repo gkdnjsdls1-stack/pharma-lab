@@ -218,7 +218,7 @@ function vnShow(){
 function vnNext(){ if (!vnQ.length) return; vnQ.shift(); vnShow(); if (!vnQ.length) draw(); }
 // 그림은 쓰는 사람이 넣는다. 없으면 실루엣으로 떨어진다.
 function portrait(n){
-  const img = $('vnpic'), file = `portraits/${R.id}-${n}.png`;
+  const img = $('vnpic'), file = `portraits/${R.id}-${n}.jpg`;
   img.onload  = () => { img.hidden = false; $('vnfall').hidden = true; };
   img.onerror = () => { img.hidden = true;  $('vnfall').hidden = false;
                         $('vnmiss').textContent = file; };

@@ -17,7 +17,7 @@
 - `bleach.js` + `room-bleach.js` — 방 7 소독액
 - `ether.js` + `room-ether.js` — 방 8 마취
 - `playtest.js` — 방마다 전략별 성공률. `node playtest.js`
-- `portraits/` — 방별 초상 `<방id>-0~3.png`. 없으면 실루엣
+- `portraits/` — 방별 초상 `<방id>-0~3.jpg` (3:4, 440 px). 없으면 실루엣
 - `sar-lab.html` + `sim.js` — v1(SAR 최적화 게임). 보관용
 
 방을 더하려면 `<화학>.js` + `room-<id>.js`를 만들고, `room.html`의 ROOMS와
